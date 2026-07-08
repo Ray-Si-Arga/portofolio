@@ -1,8 +1,9 @@
 import * as THREE from "three";
 
 const container = document.getElementById("canvas-container");
-const scene = new THREE.Scene();
+if (!container) throw new Error("Canvas container tidak ditemukan");
 
+const scene = new THREE.Scene();
 const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 renderer.setPixelRatio(window.devicePixelRatio);
@@ -13,16 +14,15 @@ const textureLoader = new THREE.TextureLoader();
 const textureColor = textureLoader.load("/images/gambar.jpeg");
 const textureSketch = textureLoader.load("/images/gambar-sketsa.png");
 
-// 1. Tambahkan u_time ke dalam Uniforms agar noise-nya bisa bergerak dinamis
+// Enhanced uniforms untuk efek neon geometric
 const uniforms = {
     u_textureColor: { value: textureColor },
     u_textureSketch: { value: textureSketch },
     u_mouse: { value: new THREE.Vector2(0.5, 0.5) },
-    u_radius: { value: 0.15 },
-    u_resolution: {
-        value: new THREE.Vector2(window.innerWidth, window.innerHeight),
-    },
-    u_time: { value: 0.0 }, // Menyimpan data waktu berjalan
+    u_radius: { value: 0.12 },
+    u_resolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
+    u_time: { value: 0.0 },
+    u_neonIntensity: { value: 0.8 },
 };
 
 const vertexShader = `
@@ -33,7 +33,7 @@ const vertexShader = `
     }
 `;
 
-// 2. Fragment Shader dengan algoritma Pseudo-Random & Distortion Noise
+// Enhanced Fragment Shader dengan neon geometric vibes
 const fragmentShader = `
     varying vec2 vUv;
     uniform sampler2D u_textureColor;
@@ -42,6 +42,7 @@ const fragmentShader = `
     uniform float u_radius;
     uniform vec2 u_resolution;
     uniform float u_time;
+    uniform float u_neonIntensity;
 
     // Fungsi Hash untuk keacakan tingkat tinggi
     float hash(vec2 p) {
@@ -50,7 +51,7 @@ const fragmentShader = `
         return fract(p.x * p.y);
     }
 
-    // Value Noise 2D standard
+    // Value Noise 2D
     float noise(vec2 p) {
         vec2 i = floor(p);
         vec2 f = fract(p);
@@ -62,17 +63,29 @@ const fragmentShader = `
         return mix(a, b, u.x) + (c - a) * u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
     }
 
-    // FBM (Fractal Brownian Motion) untuk menumpuk noise agar tekstur pecahannya sangat kompleks
+    // FBM (Fractal Brownian Motion)
     float fbm(vec2 p) {
         float value = 0.0;
         float amplitude = 0.5;
         float frequency = 1.0;
-        for (int i = 0; i < 3; i++) { // 3 Iterasi untuk detail pecahan tajam
+        for (int i = 0; i < 4; i++) {
             value += amplitude * noise(p * frequency);
-            frequency *= 2.5;
+            frequency *= 2.2;
             amplitude *= 0.5;
         }
         return value;
+    }
+
+    // Geometric pattern dengan garis-garis neon
+    float geometricPattern(vec2 p) {
+        float pattern = 0.0;
+        
+        // Grid lines dengan rotasi dinamis
+        float grid1 = sin(p.x * 8.0 + u_time * 0.3) * cos(p.y * 8.0 - u_time * 0.2);
+        float grid2 = sin((p.x + p.y) * 6.0 + u_time * 0.4) * cos((p.x - p.y) * 6.0 - u_time * 0.3);
+        
+        pattern = (grid1 + grid2) * 0.5;
+        return smoothstep(-0.3, 0.3, pattern);
     }
 
     void main() {
@@ -80,34 +93,46 @@ const fragmentShader = `
         vec2 uvCorrected = vUv * aspect;
         vec2 mouseCorrected = u_mouse * aspect;
 
-        // --- PROSES EFEK SHATTER SANGAT ACAK (ASYMMETRIC DISTORTION) ---
-        // Membuat dua arah distorsi koordinat yang berbeda berdasarkan FBM Noise
-        vec2 noisePos1 = uvCorrected * 12.0 + vec2(u_time * 0.8, -u_time * 0.5);
-        vec2 noisePos2 = uvCorrected * 24.0 + vec2(-u_time * 0.4, u_time * 0.9);
+        // Advanced shatter effect dengan geometric distortion
+        vec2 noisePos1 = uvCorrected * 15.0 + vec2(u_time * 0.8, -u_time * 0.5);
+        vec2 noisePos2 = uvCorrected * 28.0 + vec2(-u_time * 0.4, u_time * 0.9);
+        vec2 noisePos3 = uvCorrected * 8.0 + vec2(u_time * 0.3, u_time * 0.4);
         
-        // Gabungkan kedua noise untuk menciptakan distorsi pecahan yang benar-benar tidak beraturan
-        float shatter = fbm(noisePos1) * 0.6 + fbm(noisePos2) * 0.4;
-        
-        // Menggunakan fungsi matematika tajam (fract/abs) untuk memberikan efek patahan/gerigi runcing
-        shatter = abs(shatter - 0.5) * 2.0; 
+        float shatter = fbm(noisePos1) * 0.5 + fbm(noisePos2) * 0.3 + fbm(noisePos3) * 0.2;
+        shatter = abs(shatter - 0.5) * 2.0;
         shatter = smoothstep(0.0, 1.0, shatter);
 
-        // Hitung jarak murni dari cursor
+        // Geometric pattern layer
+        float geom = geometricPattern(uvCorrected * 2.0 + u_time * 0.2);
+
+        // Distance dari cursor
         float dist = distance(uvCorrected, mouseCorrected);
         
-        // Aplikasikan efek hancur (shatter) langsung ke radius lingkaran secara agresif
-        // Angka 0.09 mengatur seberapa jauh jangkauan pecahan berantakan tersebut ke luar-dalam lingkaran
-        float finalRadius = u_radius + (shatter - 0.5) * 0.09; 
+        // Enhanced radius dengan geometric influence
+        float finalRadius = u_radius + (shatter - 0.5) * 0.1 + geom * 0.03;
 
-        // Mengambil sampel warna dari kedua gambar (Berwarna & Sketsa)
+        // Sampling dari texture
         vec4 colorImg = texture2D(u_textureColor, vUv);
         vec4 sketchImg = texture2D(u_textureSketch, vUv);
 
-        // Potong lingkaran dengan hasil radius baru yang sudah hancur total
-        // Angka 0.008 memberikan sedikit kelembutan pada pinggiran pecahannya agar tidak patah-patah pixelated
-        float circle = smoothstep(finalRadius, finalRadius - 0.008, dist);
+        // Main circle dengan smooth edges
+        float circle = smoothstep(finalRadius, finalRadius - 0.01, dist);
         
-        gl_FragColor = mix(colorImg, sketchImg, circle);
+        // Glow effect (neon)
+        float glow = exp(-dist * 8.0) * u_neonIntensity * 0.3;
+        
+        vec4 finalColor = mix(colorImg, sketchImg, circle);
+        
+        // Apply glow dengan neon cyan-magenta tint
+        vec3 neonGlow = vec3(
+            sin(u_time * 0.5) * 0.5 + 0.5,  // Cyan
+            0.2,
+            cos(u_time * 0.5) * 0.5 + 0.5   // Magenta
+        );
+        
+        finalColor.rgb += glow * neonGlow * 0.5;
+        
+        gl_FragColor = finalColor;
     }
 `;
 
@@ -126,40 +151,37 @@ function updateMousePosition(x, y) {
     uniforms.u_mouse.value.y = 1.0 - y / window.innerHeight;
 }
 
+// Mouse events
 window.addEventListener("mousemove", (e) => {
     updateMousePosition(e.clientX, e.clientY);
 });
-window.addEventListener(
-    "touchmove",
-    (e) => {
-        if (e.touches.length > 0)
-            updateMousePosition(e.touches[0].clientX, e.touches[0].clientY);
-    },
-    { passive: true },
-);
-window.addEventListener(
-    "touchstart",
-    (e) => {
-        if (e.touches.length > 0)
-            updateMousePosition(e.touches[0].clientX, e.touches[0].clientY);
-    },
-    { passive: true },
-);
 
+// Touch events
+window.addEventListener("touchmove", (e) => {
+    if (e.touches.length > 0) {
+        updateMousePosition(e.touches[0].clientX, e.touches[0].clientY);
+    }
+}, { passive: true });
+
+window.addEventListener("touchstart", (e) => {
+    if (e.touches.length > 0) {
+        updateMousePosition(e.touches[0].clientX, e.touches[0].clientY);
+    }
+}, { passive: true });
+
+// Resize handler
 window.addEventListener("resize", () => {
     renderer.setSize(window.innerWidth, window.innerHeight);
     uniforms.u_resolution.value.set(window.innerWidth, window.innerHeight);
 });
 
-// 3. Update u_time di dalam Loop Animasi
+// Animation loop
 const clock = new THREE.Clock();
 
 function animate() {
     requestAnimationFrame(animate);
-
-    // Perbarui nilai waktu agar efek noise shatter-nya terlihat "hidup" dan bergerak halus
     uniforms.u_time.value = clock.getElapsedTime();
-
     renderer.render(scene, camera);
 }
+
 animate();

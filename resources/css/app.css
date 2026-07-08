@@ -1,9 +1,56 @@
-@import 'tailwindcss';
+@import "tailwindcss";
 
-@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
-@source '../../storage/framework/views/*.php';
+/* Custom CSS Variables untuk Neon Theme */
+:root {
+    --neon-cyan: #00d4ff;
+    --neon-blue: #0ea5e9;
+    --neon-purple: #c084fc;
+    --neon-glow: 0 0 20px rgba(0, 212, 255, 0.5);
+}
 
-@theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+/* Smooth scrolling untuk semua elemen */
+html {
+    scroll-behavior: smooth;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+    width: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: rgba(0, 212, 255, 0.05);
+}
+
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #00d4ff, #0ea5e9);
+    border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, #0ea5e9, #c084fc);
+    box-shadow: 0 0 20px rgba(0, 212, 255, 0.5);
+}
+
+/* Smooth transitions */
+* {
+    transition-property: background-color, border-color, color, box-shadow;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 300ms;
+}
+
+/* Utility classes */
+.glow-text {
+    text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+}
+
+.glow-box {
+    box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+}
+
+.gradient-neon {
+    background: linear-gradient(135deg, #00d4ff, #0ea5e9, #c084fc);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
 }
